@@ -33,7 +33,7 @@
 
     // 3) Charge un GeoJSON depuis votre dépôt (chemin relatif)
     // Remplacez "arbres.geojson" par un fichier réel présent dans data/geojson/
-    fetch('data/geojson/Cimes-contours.geojson')
+    fetch('data/geojson/Cimes-contours.gpkg')
       .then(r => r.json())
       .then(geojson => {
         const layer = L.geoJSON(geojson, {
