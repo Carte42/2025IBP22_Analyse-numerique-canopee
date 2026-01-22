@@ -3,13 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Carte Leaflet – Indice de canopée</title>
+  <title>Carte Leaflet – Canopée</title>
 
-  <!-- Leaflet via CDN -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
@@ -23,7 +20,7 @@
       width: 100vw;
     }
 
-    /* Encapsulé simple KPI */
+    /* Encapsulé KPI simple */
     .canopy-kpi {
       position: fixed;
       left: 16px;
@@ -35,7 +32,6 @@
       border: 1px solid rgba(0,0,0,0.15);
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       font-size: 14px;
-      line-height: 1.4;
       white-space: nowrap;
     }
 
@@ -56,30 +52,29 @@
 
   <!-- Encapsulé KPI -->
   <div class="canopy-kpi">
-    <strong>Indice de canopée sur le territoire communal :</strong>
+    <strong>Indice de canopée :</strong>
     <span class="canopy-value">18,5&nbsp;%</span>
   </div>
 
   <script>
-    // 1) Initialisation de la carte
+    // Carte
     const map = L.map('map').setView([47.28, -2.43], 13);
 
-    // 2) Fond de carte OpenStreetMap
+    // Fond de carte
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    // 3) Chargement de la couche GeoJSON principale
+    // Conteneurs de couches
+    let cimesLayer;
+    let fauxPosLayer;
+
+    // Chargement Cimes-contours
     fetch('data/geojson/Cimes-contours.geojson')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Erreur HTTP ' + response.status);
-        }
-        return response.json();
-      })
+      .then(r => r.json())
       .then(geojson => {
-        const layer = L.geoJSON(geojson, {
+        cimesLayer = L.geoJSON(geojson, {
           style: {
             color: '#2c7fb8',
             weight: 1,
@@ -94,15 +89,44 @@
           }
         }).addTo(map);
 
-        // Zoom automatique sur l'emprise de la couche
-        if (layer.getBounds().isValid()) {
-          map.fitBounds(layer.getBounds());
+        if (cimesLayer.getBounds().isValid()) {
+          map.fitBounds(cimesLayer.getBounds());
         }
+
+        addLayerControlIfReady();
       })
-      .catch(err => {
-        console.error(err);
-        alert('Impossible de charger la couche de canopée.');
-      });
+      .catch(err => console.error('Erreur Cimes-contours', err));
+
+    // Chargement Faux-positifs
+    fetch('data/geojson/Faux-positifs.geojson')
+      .then(r => r.json())
+      .then(geojson => {
+        fauxPosLayer = L.geoJSON(geojson, {
+          style: {
+            color: '#d73027',
+            weight: 2,
+            fillOpacity: 0.6
+          },
+          onEachFeature: () => {
+            // volontairement simple
+          }
+        }).addTo(map);
+
+        addLayerControlIfReady();
+      })
+      .catch(err => console.error('Erreur Faux-positifs', err));
+
+    // Ajout du contrôle de couches une fois les deux chargées
+    function addLayerControlIfReady() {
+      if (cimesLayer && fauxPosLayer && !map._layersControlAdded) {
+        const overlays = {
+          "Canopée retenue": cimesLayer,
+          "Faux positifs": fauxPosLayer
+        };
+        L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+        map._layersControlAdded = true;
+      }
+    }
   </script>
 
 </body>
