@@ -6,10 +6,7 @@
   <title>Carte Leaflet + KPIs</title>
 
   <!-- Leaflet via CDN -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
@@ -22,37 +19,83 @@
   <div id="map"></div>
 
   <script>
-    // 1) Crée la carte (centre à adapter)
+    // 1) Carte
     const map = L.map('map').setView([47.28, -2.43], 13);
 
-    // 2) Fond de carte OpenStreetMap
+    // 2) Fond de carte
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    // 3) Charge un GeoJSON depuis votre dépôt (chemin relatif)
-    // Remplacez "arbres.geojson" par un fichier réel présent dans data/geojson/
-    fetch('data/geojson/Cimes-contours.geojson')
-      .then(r => r.json())
+    // 3) Construction d'URLs robustes (compatible GitHub Pages en sous-dossier)
+    const baseUrl = new URL('.', window.location.href);
+    const cimesUrl = new URL('data/geojson/Cimes-contours.geojson', baseUrl);
+    const fauxPosUrl = new URL('data/geojson/Faux-positifs.geojson', baseUrl);
+
+    // 4) Fonction utilitaire de popup (affiche toutes les propriétés)
+    function bindAllPropsPopup(feature, layer) {
+      const props = feature.properties || {};
+      const html = Object.entries(props)
+        .map(([k, v]) => `<b>${k}</b> : ${v}`)
+        .join('<br>');
+      layer.bindPopup(html || 'Aucune propriété');
+    }
+
+    // 5) Charge la couche principale (Cimes)
+    let cimesLayer = null;
+    fetch(cimesUrl.toString(), { cache: 'no-store' })
+      .then(async r => {
+        if (!r.ok) throw new Error(`Cimes-contours: HTTP ${r.status} sur ${r.url}`);
+        return r.json();
+      })
       .then(geojson => {
-        const layer = L.geoJSON(geojson, {
-          onEachFeature: (feature, layer) => {
-            // Affichage des KPIs : ici on affiche toutes les propriétés
-            const props = feature.properties || {};
-            const html = Object.entries(props)
-              .map(([k, v]) => `<b>${k}</b> : ${v}`)
-              .join('<br>');
-            layer.bindPopup(html || 'Aucune propriété');
-          }
+        cimesLayer = L.geoJSON(geojson, {
+          style: {
+            color: '#2c7fb8',
+            weight: 1,
+            fillOpacity: 0.35
+          },
+          onEachFeature: bindAllPropsPopup
         }).addTo(map);
 
-        // Zoom automatique sur la couche
-        map.fitBounds(layer.getBounds());
+        // Zoom sur la couche principale
+        if (cimesLayer.getLayers().length) {
+          map.fitBounds(cimesLayer.getBounds());
+        }
       })
       .catch(err => {
-        console.error('Erreur de chargement GeoJSON :', err);
-        alert('Impossible de charger le GeoJSON. Vérifiez le chemin et le nom du fichier.');
+        console.error(err);
+        alert('Impossible de charger Cimes-contours.geojson : ' + err.message);
+      });
+
+    // 6) Charge la couche "Faux-positifs" en rouge
+    let fauxPosLayer = null;
+    fetch(fauxPosUrl.toString(), { cache: 'no-store' })
+      .then(async r => {
+        if (!r.ok) throw new Error(`Faux-positifs: HTTP ${r.status} sur ${r.url}`);
+        return r.json();
+      })
+      .then(geojson => {
+        fauxPosLayer = L.geoJSON(geojson, {
+          style: {
+            color: '#d73027',
+            weight: 2,
+            fillOpacity: 0.55
+          },
+          onEachFeature: bindAllPropsPopup
+        }).addTo(map);
+
+        // Optionnel : contrôle on/off des couches (apparaît dès que la couche rouge est chargée)
+        const overlays = {
+          "Cimes-contours": cimesLayer || L.layerGroup(),
+          "Faux-positifs (rouge)": fauxPosLayer
+        };
+        L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Impossible de charger Faux-positifs.geojson : ' + err.message);
       });
   </script>
 </body>
