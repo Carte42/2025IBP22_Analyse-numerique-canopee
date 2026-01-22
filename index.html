@@ -117,7 +117,7 @@
         }).addTo(map);
 
         const overlays = {
-          "Cimes-contours": cimesLayer || L.layerGroup(),
+          "Cimes-contours": cimesLayer,
           "Faux-positifs (rouge)": fauxPosLayer
         };
         L.control.layers(null, overlays, { collapsed: false }).addTo(map);
