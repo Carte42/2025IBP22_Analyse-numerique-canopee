@@ -3,162 +3,65 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Carte Leaflet + KPIs</title>
+  <title>Carte Leaflet – Indice de canopée</title>
 
   <!-- Leaflet via CDN -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    body { margin: 0; font-family: sans-serif; }
-    #map { height: 100vh; width: 100vw; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
 
-    /* KPI panel overlay (bottom-left) */
-    .kpi-panel {
+    #map {
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* Encapsulé simple KPI */
+    .canopy-kpi {
       position: fixed;
-      left: 14px;
-      bottom: 14px;
-      z-index: 9999;
-      background: rgba(255,255,255,0.92);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      border: 1px solid rgba(0,0,0,0.10);
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-      padding: 12px 12px 10px 12px;
-      width: min(520px, calc(100vw - 28px));
-      max-height: 40vh;
-      overflow: auto;
-    }
-
-    .kpi-title {
+      left: 16px;
+      bottom: 16px;
+      z-index: 1000;
+      background: #ffffff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,0.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       font-size: 14px;
-      font-weight: 700;
-      margin: 0 0 8px 0;
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-    }
-    .kpi-subtitle {
-      font-size: 12px;
-      font-weight: 500;
-      color: rgba(0,0,0,0.55);
-    }
-
-    table.kpi-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12.5px;
-    }
-    table.kpi-table th,
-    table.kpi-table td {
-      text-align: left;
-      padding: 7px 8px;
-      border-bottom: 1px solid rgba(0,0,0,0.08);
-      vertical-align: top;
-    }
-    table.kpi-table th {
-      font-size: 11.5px;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      color: rgba(0,0,0,0.55);
-      font-weight: 700;
-    }
-    table.kpi-table tr:last-child td { border-bottom: none; }
-
-    .kpi-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-      background: rgba(0,0,0,0.06);
-      color: rgba(0,0,0,0.75);
+      line-height: 1.4;
       white-space: nowrap;
     }
-    .kpi-badge.red { background: rgba(215,48,39,0.12); color: rgba(140,20,14,0.95); }
-    .kpi-badge.blue { background: rgba(44,127,184,0.12); color: rgba(16,76,118,0.95); }
-    .kpi-badge.green { background: rgba(26,150,65,0.14); color: rgba(14,85,38,0.95); }
 
-    .kpi-footnote {
-      margin-top: 8px;
-      font-size: 11.5px;
-      color: rgba(0,0,0,0.55);
-      line-height: 1.35;
+    .canopy-kpi strong {
+      font-weight: 700;
+    }
+
+    .canopy-value {
+      font-weight: 800;
+      color: #1a9850;
     }
   </style>
 </head>
 
 <body>
+
   <div id="map"></div>
 
-  <!-- KPI overlay panel -->
-  <div class="kpi-panel" role="region" aria-label="Indicateurs clés">
-    <div class="kpi-title">
-      Indicateurs clés – Canopée (Le Pouliguen)
-      <span class="kpi-subtitle">résultats consolidés</span>
-    </div>
-
-    <table class="kpi-table">
-      <thead>
-        <tr>
-          <th>Indicateur</th>
-          <th>Valeur</th>
-          <th>Commentaire</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Surface arborée retenue (finale)</td>
-          <td><span class="kpi-badge green">813&nbsp;398 m²</span></td>
-          <td>Inclut détection automatique + ajouts manuels (faux négatifs) après contrôle.</td>
-        </tr>
-        <tr>
-          <td>Faux positifs</td>
-          <td><span class="kpi-badge red">7&nbsp;246 m²</span></td>
-          <td>≈ 0,9 % de la surface arborée brute détectée (objets non arborés, arbres abattus, etc.).</td>
-        </tr>
-        <tr>
-          <td>Faux négatifs</td>
-          <td><span class="kpi-badge blue">14&nbsp;287 m²</span></td>
-          <td>≈ 1,8 % de la surface arborée finale (arbres significatifs ajoutés manuellement).</td>
-        </tr>
-        <tr>
-          <td>Incertitude globale (surface arborée)</td>
-          <td><span class="kpi-badge">± 3 %</span></td>
-          <td>Ordre de grandeur intégrant corrections + limites LiDAR / résolution des contrôles.</td>
-        </tr>
-        <tr>
-          <td>Surface arborée sur parcelles</td>
-          <td><span class="kpi-badge">734&nbsp;842 m²</span></td>
-          <td>Toutes propriétés confondues.</td>
-        </tr>
-        <tr>
-          <td>Surface arborée emprises publiques &amp; voirie</td>
-          <td><span class="kpi-badge">78&nbsp;556 m²</span></td>
-          <td>Emprises publiques structurantes (voiries, espaces communaux).</td>
-        </tr>
-        <tr>
-          <td>Superficie communale</td>
-          <td><span class="kpi-badge">4,39 km²</span></td>
-          <td>≈ 4&nbsp;390&nbsp;000 m².</td>
-        </tr>
-        <tr>
-          <td>Indice de canopée</td>
-          <td><span class="kpi-badge green">18,5 %</span></td>
-          <td>Incertitude estimée ≈ ± 0,5 point.</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="kpi-footnote">
-      Note : les arbres de très petite taille ont été exclus (fiabilité insuffisante à la résolution considérée),
-      leur contribution estimée restant marginale à l’échelle communale.
-    </div>
+  <!-- Encapsulé KPI -->
+  <div class="canopy-kpi">
+    <strong>Indice de canopée sur le territoire communal :</strong>
+    <span class="canopy-value">18,5&nbsp;%</span>
   </div>
 
   <script>
-    // 1) Crée la carte (centre à adapter)
+    // 1) Initialisation de la carte
     const map = L.map('map').setView([47.28, -2.43], 13);
 
     // 2) Fond de carte OpenStreetMap
@@ -167,13 +70,22 @@
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    // 3) Charge le GeoJSON "Cimes-contours"
+    // 3) Chargement de la couche GeoJSON principale
     fetch('data/geojson/Cimes-contours.geojson')
-      .then(r => r.json())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Erreur HTTP ' + response.status);
+        }
+        return response.json();
+      })
       .then(geojson => {
         const layer = L.geoJSON(geojson, {
+          style: {
+            color: '#2c7fb8',
+            weight: 1,
+            fillOpacity: 0.4
+          },
           onEachFeature: (feature, layer) => {
-            // Affichage des KPIs : ici on affiche toutes les propriétés
             const props = feature.properties || {};
             const html = Object.entries(props)
               .map(([k, v]) => `<b>${k}</b> : ${v}`)
@@ -182,13 +94,16 @@
           }
         }).addTo(map);
 
-        // Zoom automatique sur la couche
-        map.fitBounds(layer.getBounds());
+        // Zoom automatique sur l'emprise de la couche
+        if (layer.getBounds().isValid()) {
+          map.fitBounds(layer.getBounds());
+        }
       })
       .catch(err => {
-        console.error('Erreur de chargement GeoJSON :', err);
-        alert('Impossible de charger le GeoJSON. Vérifiez le chemin et le nom du fichier.');
+        console.error(err);
+        alert('Impossible de charger la couche de canopée.');
       });
   </script>
+
 </body>
 </html>
