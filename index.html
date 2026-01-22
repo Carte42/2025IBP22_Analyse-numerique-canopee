@@ -12,11 +12,42 @@
   <style>
     body { margin: 0; font-family: sans-serif; }
     #map { height: 100vh; width: 100vw; }
+
+    /* === Encapsulé KPI simple === */
+    .canopy-kpi {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 1000;
+      background: #ffffff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,0.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .canopy-kpi strong {
+      font-weight: 700;
+    }
+
+    .canopy-value {
+      font-weight: 800;
+      color: #1a9850;
+    }
   </style>
 </head>
 
 <body>
+
   <div id="map"></div>
+
+  <!-- === Encart KPI === -->
+  <div class="canopy-kpi">
+    <strong>Indice de canopée :</strong>
+    <span class="canopy-value">18,5&nbsp;%</span>
+  </div>
 
   <script>
     // 1) Carte
@@ -59,7 +90,6 @@
           onEachFeature: bindAllPropsPopup
         }).addTo(map);
 
-        // Zoom sur la couche principale
         if (cimesLayer.getLayers().length) {
           map.fitBounds(cimesLayer.getBounds());
         }
@@ -86,7 +116,6 @@
           onEachFeature: bindAllPropsPopup
         }).addTo(map);
 
-        // Optionnel : contrôle on/off des couches (apparaît dès que la couche rouge est chargée)
         const overlays = {
           "Cimes-contours": cimesLayer || L.layerGroup(),
           "Faux-positifs (rouge)": fauxPosLayer
