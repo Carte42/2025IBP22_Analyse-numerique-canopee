@@ -75,6 +75,28 @@
 
     // 5) Charge la couche principale (Cimes)
     let cimesLayer = null;
+    // 6) Charge la couche "Faux-positifs" en rouge
+    let fauxPosLayer = null;
+
+    // === AJOUT MINIMAL : contrôle de couches créé seulement quand les deux fetch ont terminé ===
+    let layersControl = null;
+    let cimesDone = false;
+    let fauxDone = false;
+
+    function maybeCreateLayersControl() {
+      if (!cimesDone || !fauxDone) return;
+      if (layersControl) return;
+
+      const overlays = {};
+      if (cimesLayer) overlays["Cimes-contours"] = cimesLayer;
+      if (fauxPosLayer) overlays["Faux-positifs (rouge)"] = fauxPosLayer;
+
+      if (Object.keys(overlays).length) {
+        layersControl = L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+      }
+    }
+    // === FIN AJOUT MINIMAL ===
+
     fetch(cimesUrl.toString(), { cache: 'no-store' })
       .then(async r => {
         if (!r.ok) throw new Error(`Cimes-contours: HTTP ${r.status} sur ${r.url}`);
@@ -97,10 +119,12 @@
       .catch(err => {
         console.error(err);
         alert('Impossible de charger Cimes-contours.geojson : ' + err.message);
+      })
+      .finally(() => { // === AJOUT MINIMAL ===
+        cimesDone = true;
+        maybeCreateLayersControl();
       });
 
-    // 6) Charge la couche "Faux-positifs" en rouge
-    let fauxPosLayer = null;
     fetch(fauxPosUrl.toString(), { cache: 'no-store' })
       .then(async r => {
         if (!r.ok) throw new Error(`Faux-positifs: HTTP ${r.status} sur ${r.url}`);
@@ -116,15 +140,16 @@
           onEachFeature: bindAllPropsPopup
         }).addTo(map);
 
-        const overlays = {
-          "Cimes-contours": cimesLayer,
-          "Faux-positifs (rouge)": fauxPosLayer
-        };
-        L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+        // (Suppression nécessaire) le contrôle de couches ne doit plus être créé ici,
+        // sinon cimesLayer peut encore être null.
       })
       .catch(err => {
         console.error(err);
         alert('Impossible de charger Faux-positifs.geojson : ' + err.message);
+      })
+      .finally(() => { // === AJOUT MINIMAL ===
+        fauxDone = true;
+        maybeCreateLayersControl();
       });
   </script>
 </body>
