@@ -283,7 +283,7 @@
         <div class="kpi-value" id="kpiCimes">—</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Hauteur moyenne</div>
+        <div class="kpi-label">Hauteur moy. des cimes</div>
         <div class="kpi-value" id="kpiHautMoy">—</div>
         <div class="kpi-unit">m</div>
       </div>
@@ -358,7 +358,7 @@
 
   <!-- Graphique : distribution des hauteurs -->
   <div class="sidebar-section">
-    <h2>Distribution des hauteurs</h2>
+    <h2>Distribution des hauteurs (max)</h2>
     <div class="chart-wrap">
       <canvas id="chartHauteurs"></canvas>
     </div>
@@ -417,9 +417,8 @@
     return `<div class="popup-title">🌳 Cime #${p.id}</div>
       <table class="popup-table">
         <tr><td class="pop-label">Surface</td><td class="pop-val">${fmt(p.Surface_2, 1)} m²</td></tr>
-        <tr><td class="pop-label">Hauteur moy.</td><td class="pop-val">${fmt(p.Haut_moy, 1)} m</td></tr>
-        <tr><td class="pop-label">Hauteur max.</td><td class="pop-val">${fmt(p.Haut_max, 1)} m</td></tr>
-        <tr><td class="pop-label">Hauteur min.</td><td class="pop-val">${fmt(p.Haut_min, 1)} m</td></tr>
+        <tr><td class="pop-label">Hauteur</td><td class="pop-val">${fmt(p.Haut_max, 1)} m</td></tr>
+        <tr><td class="pop-label">Haut. min.</td><td class="pop-val">${fmt(p.Haut_min, 1)} m</td></tr>
         ${fn}
       </table>`;
   }
@@ -437,7 +436,7 @@
     if (!cimesLayer) return;
     let count = 0;
     cimesLayer.eachLayer(layer => {
-      const h = layer.feature.properties.Haut_moy || 0;
+      const h = layer.feature.properties.Haut_max || 0;
       if (h >= heightMin && h <= heightMax) {
         const col = heightColor(h);
         layer.setStyle({ color: col, fillColor: col, weight: 1, opacity: 1, fillOpacity: 0.65 });
@@ -466,7 +465,7 @@
 
     // -- Stats --
     const surfaces = props.map(p => p.Surface_2 || 0);
-    const hauteurs = props.map(p => p.Haut_moy || 0).filter(h => h > 0);
+    const hauteurs = props.map(p => p.Haut_max || 0).filter(h => h > 0);
     const fauxNegs = props.filter(p => p['Faux negat']).length;
 
     MAX_H = Math.ceil(Math.max(...hauteurs));
@@ -491,20 +490,20 @@
     // -- Couche Cimes --
     cimesLayer = L.geoJSON(cimesGeoJSON, {
       style: f => {
-        const h   = f.properties.Haut_moy || 0;
+        const h   = f.properties.Haut_max || 0;
         const col = heightColor(h);
         return { color: col, fillColor: col, weight: 1, opacity: 1, fillOpacity: 0.65 };
       },
       onEachFeature: (feature, layer) => {
         layer.bindPopup(makeCimesPopup(feature.properties), { maxWidth: 220 });
         layer.on('mouseover', function () {
-          const h = feature.properties.Haut_moy || 0;
+          const h = feature.properties.Haut_max || 0;
           if (h >= heightMin && h <= heightMax) {
             this.setStyle({ weight: 2.5, fillOpacity: 0.9 });
           }
         });
         layer.on('mouseout', function () {
-          const h = feature.properties.Haut_moy || 0;
+          const h = feature.properties.Haut_max || 0;
           if (h >= heightMin && h <= heightMax) {
             const col = heightColor(h);
             this.setStyle({ color: col, fillColor: col, weight: 1, opacity: 1, fillOpacity: 0.65 });
