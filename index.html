@@ -3,154 +3,631 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Carte Leaflet + KPIs</title>
+  <title>Canopée — Le Pouliguen</title>
 
-  <!-- Leaflet via CDN -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
   <style>
-    body { margin: 0; font-family: sans-serif; }
-    #map { height: 100vh; width: 100vw; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* === Encapsulé KPI simple === */
-    .canopy-kpi {
-      position: fixed;
-      left: 16px;
-      bottom: 16px;
+    body {
+      display: flex;
+      height: 100vh;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ===== SIDEBAR ===== */
+    #sidebar {
+      width: 310px;
+      min-width: 310px;
+      height: 100vh;
+      overflow-y: auto;
+      background: #fff;
+      box-shadow: 2px 0 14px rgba(0,0,0,0.13);
+      display: flex;
+      flex-direction: column;
       z-index: 1000;
-      background: #ffffff;
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid rgba(0,0,0,0.15);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      font-size: 14px;
-      white-space: nowrap;
     }
 
-    .canopy-kpi strong {
+    .sidebar-header {
+      background: linear-gradient(135deg, #1a5e20 0%, #2e7d32 100%);
+      color: white;
+      padding: 18px 18px 14px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header h1 {
+      font-size: 16px;
       font-weight: 700;
+      letter-spacing: 0.2px;
     }
 
-    .canopy-value {
+    .sidebar-header p {
+      font-size: 11px;
+      opacity: 0.75;
+      margin-top: 3px;
+    }
+
+    .sidebar-section {
+      padding: 13px 15px;
+      border-bottom: 1px solid #eee;
+      flex-shrink: 0;
+    }
+
+    .sidebar-section h2 {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: #999;
+      margin-bottom: 10px;
+    }
+
+    /* ===== KPIs ===== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .kpi-card {
+      background: #f7f9f7;
+      border-radius: 8px;
+      padding: 9px 11px;
+      border: 1px solid #e8ede8;
+    }
+
+    .kpi-card .kpi-label {
+      font-size: 10px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .kpi-card .kpi-value {
+      font-size: 21px;
       font-weight: 800;
-      color: #1a9850;
+      color: #1a5e20;
+      line-height: 1.15;
+      margin-top: 1px;
+    }
+
+    .kpi-card .kpi-unit {
+      font-size: 11px;
+      color: #777;
+      font-weight: 400;
+    }
+
+    .kpi-card.hero {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, #1a5e20 0%, #43a047 100%);
+      border: none;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .kpi-card.hero .kpi-label { color: rgba(255,255,255,0.72); }
+    .kpi-card.hero .kpi-value { color: #fff; font-size: 30px; }
+    .kpi-card.hero .kpi-unit  { color: rgba(255,255,255,0.72); }
+
+    .hero-icon {
+      font-size: 28px;
+      line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+    }
+
+    /* ===== FILTER ===== */
+    .range-group { display: flex; flex-direction: column; gap: 7px; }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .range-row label { width: 55px; color: #666; }
+
+    .range-row input[type=range] {
+      flex: 1;
+      accent-color: #2e7d32;
+      cursor: pointer;
+    }
+
+    .range-row .range-val {
+      width: 42px;
+      text-align: right;
+      font-weight: 700;
+      color: #2e7d32;
+      font-size: 12px;
+    }
+
+    .filter-info {
+      font-size: 11px;
+      color: #999;
+      margin-top: 7px;
+    }
+
+    #filterCount { font-weight: 700; color: #2e7d32; }
+
+    /* ===== LAYER TOGGLES ===== */
+    .layer-toggle {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+      font-size: 13px;
+      user-select: none;
+      padding: 4px 0;
+    }
+
+    .layer-toggle input[type=checkbox] {
+      accent-color: #2e7d32;
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    .layer-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* ===== LEGEND ===== */
+    .legend-gradient {
+      height: 13px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #c7e9b4, #41ab5d, #005a32);
+      margin: 5px 0 3px;
+    }
+
+    .legend-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #aaa;
+    }
+
+    .legend-extra {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #555;
+    }
+
+    .legend-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* ===== CHARTS ===== */
+    .chart-wrap {
+      position: relative;
+      height: 130px;
+      margin-top: 4px;
+    }
+
+    .chart-wrap.tall { height: 155px; }
+
+    /* ===== MAP ===== */
+    #map { flex: 1; height: 100vh; }
+
+    /* ===== SCROLLBAR ===== */
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+    /* ===== POPUP ===== */
+    .popup-table { font-size: 12px; border-collapse: collapse; min-width: 160px; }
+    .popup-table td { padding: 3px 7px; }
+    .popup-table tr:nth-child(even) { background: #f5f5f5; }
+    .popup-table .pop-label { color: #888; }
+    .popup-table .pop-val { font-weight: 600; color: #222; }
+    .popup-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1a5e20;
+      margin-bottom: 5px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e0e0e0;
     }
   </style>
 </head>
 
 <body>
 
-  <div id="map"></div>
+<!-- ===== SIDEBAR ===== -->
+<div id="sidebar">
 
-  <!-- === Encart KPI === -->
-  <div class="canopy-kpi">
-    <strong>Indice de canopée :</strong>
-    <span class="canopy-value">18,5&nbsp;%</span>
+  <div class="sidebar-header">
+    <h1>Analyse de la canopée</h1>
+    <p>Le Pouliguen &mdash; Marché 2025IBP22 &mdash; CARTE 42</p>
   </div>
 
-  <script>
-    // 1) Carte
-    const map = L.map('map').setView([47.28, -2.43], 13);
+  <!-- KPIs -->
+  <div class="sidebar-section">
+    <h2>Indicateurs clés</h2>
+    <div class="kpi-grid">
 
-    // 2) Fond de carte
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
+      <div class="kpi-card hero">
+        <div class="hero-icon">🌳</div>
+        <div>
+          <div class="kpi-label">Indice de canopée</div>
+          <div class="kpi-value">18,5 <span class="kpi-unit">%</span></div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">Surface canopée</div>
+        <div class="kpi-value" id="kpiSurface">—</div>
+        <div class="kpi-unit">ha</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Nb de cimes</div>
+        <div class="kpi-value" id="kpiCimes">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Hauteur moyenne</div>
+        <div class="kpi-value" id="kpiHautMoy">—</div>
+        <div class="kpi-unit">m</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Hauteur max</div>
+        <div class="kpi-value" id="kpiHautMax">—</div>
+        <div class="kpi-unit">m</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Faux positifs</div>
+        <div class="kpi-value" id="kpiFauxPos">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Faux négatifs</div>
+        <div class="kpi-value" id="kpiFauxNeg">—</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Filtre hauteur -->
+  <div class="sidebar-section">
+    <h2>Filtre par hauteur</h2>
+    <div class="range-group">
+      <div class="range-row">
+        <label>Min</label>
+        <input type="range" id="filterMin" min="0" max="20" value="0" step="0.5">
+        <span class="range-val" id="filterMinVal">0 m</span>
+      </div>
+      <div class="range-row">
+        <label>Max</label>
+        <input type="range" id="filterMax" min="0" max="20" value="20" step="0.5">
+        <span class="range-val" id="filterMaxVal">20 m</span>
+      </div>
+    </div>
+    <div class="filter-info"><span id="filterCount">—</span> cimes affichées</div>
+  </div>
+
+  <!-- Couches -->
+  <div class="sidebar-section">
+    <h2>Couches</h2>
+    <label class="layer-toggle">
+      <input type="checkbox" id="toggleCimes" checked>
+      <span class="layer-swatch" style="background:#41ab5d;border:1px solid #2e7d32;"></span>
+      Cimes (contours)
+    </label>
+    <label class="layer-toggle">
+      <input type="checkbox" id="toggleFauxPos" checked>
+      <span class="layer-swatch" style="background:#d73027;border:1px solid #a50026;"></span>
+      Faux positifs
+    </label>
+  </div>
+
+  <!-- Légende -->
+  <div class="sidebar-section">
+    <h2>Légende — hauteur des cimes</h2>
+    <div class="legend-gradient"></div>
+    <div class="legend-labels">
+      <span>0 m</span><span>10 m</span><span id="legendMax">20 m</span>
+    </div>
+    <div class="legend-extra">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#d73027;border:1px solid #a50026;"></div>
+        Faux positifs
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#ccc;border:1px solid #bbb;"></div>
+        Hors filtre (masqué)
+      </div>
+    </div>
+  </div>
+
+  <!-- Graphique : distribution des hauteurs -->
+  <div class="sidebar-section">
+    <h2>Distribution des hauteurs</h2>
+    <div class="chart-wrap">
+      <canvas id="chartHauteurs"></canvas>
+    </div>
+  </div>
+
+  <!-- Graphique : faux positifs -->
+  <div class="sidebar-section">
+    <h2>Faux positifs par catégorie</h2>
+    <div class="chart-wrap tall">
+      <canvas id="chartFauxPos"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== MAP ===== -->
+<div id="map"></div>
+
+<script>
+  // ===== CONSTANTES =====
+  const BASE_URL = new URL('.', window.location.href);
+  let MAX_H = 20;
+
+  // ===== COULEUR PAR HAUTEUR =====
+  // Gradient HSL : hue 100→120, sat 55→80, lightness 80→18
+  function heightColor(h) {
+    const t = Math.min(Math.max(h / MAX_H, 0), 1);
+    const hue = Math.round(100 + t * 20);
+    const sat  = Math.round(55  + t * 25);
+    const lit  = Math.round(80  - t * 62);
+    return `hsl(${hue},${sat}%,${lit}%)`;
+  }
+
+  function fmt(n, d = 0) {
+    return n.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
+  }
+
+  // ===== CARTE =====
+  const map = L.map('map').setView([47.28, -2.43], 13);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+
+  // ===== STATE =====
+  let cimesLayer   = null;
+  let fauxPosLayer = null;
+  let heightMin = 0;
+  let heightMax = 20;
+
+  // ===== POPUPS =====
+  function makeCimesPopup(p) {
+    const fn = p['Faux negat']
+      ? `<tr><td class="pop-label">Type</td><td class="pop-val">${p['Faux negat']}</td></tr>`
+      : '';
+    return `<div class="popup-title">🌳 Cime #${p.id}</div>
+      <table class="popup-table">
+        <tr><td class="pop-label">Surface</td><td class="pop-val">${fmt(p.Surface_2, 1)} m²</td></tr>
+        <tr><td class="pop-label">Hauteur moy.</td><td class="pop-val">${fmt(p.Haut_moy, 1)} m</td></tr>
+        <tr><td class="pop-label">Hauteur max.</td><td class="pop-val">${fmt(p.Haut_max, 1)} m</td></tr>
+        <tr><td class="pop-label">Hauteur min.</td><td class="pop-val">${fmt(p.Haut_min, 1)} m</td></tr>
+        ${fn}
+      </table>`;
+  }
+
+  function makeFauxPosPopup(p) {
+    return `<div class="popup-title">⚠️ Faux positif #${p.ID}</div>
+      <table class="popup-table">
+        <tr><td class="pop-label">Catégorie</td><td class="pop-val">${p['Faux posit']}</td></tr>
+        <tr><td class="pop-label">Surface</td><td class="pop-val">${fmt(p.Surface)} m²</td></tr>
+      </table>`;
+  }
+
+  // ===== FILTRE (sans reconstruire la couche) =====
+  function applyFilter() {
+    if (!cimesLayer) return;
+    let count = 0;
+    cimesLayer.eachLayer(layer => {
+      const h = layer.feature.properties.Haut_moy || 0;
+      if (h >= heightMin && h <= heightMax) {
+        const col = heightColor(h);
+        layer.setStyle({ color: col, fillColor: col, weight: 1, opacity: 1, fillOpacity: 0.65 });
+        count++;
+      } else {
+        layer.setStyle({ opacity: 0, fillOpacity: 0 });
+      }
+    });
+    document.getElementById('filterCount').textContent = fmt(count);
+  }
+
+  // ===== CHARGEMENT =====
+  Promise.all([
+    fetch(new URL('data/geojson/Cimes-contours.geojson', BASE_URL), { cache: 'no-store' }).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status} — Cimes-contours`);
+      return r.json();
+    }),
+    fetch(new URL('data/geojson/Faux-positifs.geojson', BASE_URL), { cache: 'no-store' }).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status} — Faux-positifs`);
+      return r.json();
+    })
+  ]).then(([cimesGeoJSON, fauxGeoJSON]) => {
+
+    const features = cimesGeoJSON.features;
+    const props    = features.map(f => f.properties);
+
+    // -- Stats --
+    const surfaces = props.map(p => p.Surface_2 || 0);
+    const hauteurs = props.map(p => p.Haut_moy || 0).filter(h => h > 0);
+    const fauxNegs = props.filter(p => p['Faux negat']).length;
+
+    MAX_H = Math.ceil(Math.max(...hauteurs));
+
+    // -- KPIs --
+    document.getElementById('kpiSurface').textContent = fmt(surfaces.reduce((a,b)=>a+b,0) / 10000, 1);
+    document.getElementById('kpiCimes').textContent   = fmt(features.length);
+    document.getElementById('kpiHautMoy').textContent = fmt(hauteurs.reduce((a,b)=>a+b,0) / hauteurs.length, 1);
+    document.getElementById('kpiHautMax').textContent = fmt(Math.max(...hauteurs), 1);
+    document.getElementById('kpiFauxPos').textContent = fauxGeoJSON.features.length;
+    document.getElementById('kpiFauxNeg').textContent = fmt(fauxNegs);
+
+    // -- Mise à jour slider max --
+    ['filterMin','filterMax'].forEach(id => {
+      document.getElementById(id).max = MAX_H;
+    });
+    document.getElementById('filterMax').value = MAX_H;
+    document.getElementById('filterMaxVal').textContent = MAX_H + ' m';
+    document.getElementById('legendMax').textContent = MAX_H + ' m';
+    heightMax = MAX_H;
+
+    // -- Couche Cimes --
+    cimesLayer = L.geoJSON(cimesGeoJSON, {
+      style: f => {
+        const h   = f.properties.Haut_moy || 0;
+        const col = heightColor(h);
+        return { color: col, fillColor: col, weight: 1, opacity: 1, fillOpacity: 0.65 };
+      },
+      onEachFeature: (feature, layer) => {
+        layer.bindPopup(makeCimesPopup(feature.properties), { maxWidth: 220 });
+        layer.on('mouseover', function () {
+          const h = feature.properties.Haut_moy || 0;
+          if (h >= heightMin && h <= heightMax) {
+            this.setStyle({ weight: 2.5, fillOpacity: 0.9 });
+          }
+        });
+        layer.on('mouseout', function () {
+          const h = feature.properties.Haut_moy || 0;
+          if (h >= heightMin && h <= heightMax) {
+            const col = heightColor(h);
+            this.setStyle({ color: col, fillColor: col, weight: 1, opacity: 1, fillOpacity: 0.65 });
+          }
+        });
+      }
     }).addTo(map);
 
-    // 3) Construction d'URLs robustes (compatible GitHub Pages en sous-dossier)
-    const baseUrl = new URL('.', window.location.href);
-    const cimesUrl = new URL('data/geojson/Cimes-contours.geojson', baseUrl);
-    const fauxPosUrl = new URL('data/geojson/Faux-positifs.geojson', baseUrl);
+    map.fitBounds(cimesLayer.getBounds());
+    document.getElementById('filterCount').textContent = fmt(features.length);
 
-    // 4) Fonction utilitaire de popup (affiche toutes les propriétés)
-    function bindAllPropsPopup(feature, layer) {
-      const props = feature.properties || {};
-      const html = Object.entries(props)
-        .map(([k, v]) => `<b>${k}</b> : ${v}`)
-        .join('<br>');
-      layer.bindPopup(html || 'Aucune propriété');
-    }
-
-    // 5) Charge la couche principale (Cimes)
-    let cimesLayer = null;
-    // 6) Charge la couche "Faux-positifs" en rouge
-    let fauxPosLayer = null;
-
-    // === AJOUT MINIMAL : contrôle de couches créé seulement quand les deux fetch ont terminé ===
-    let layersControl = null;
-    let cimesDone = false;
-    let fauxDone = false;
-
-    function maybeCreateLayersControl() {
-      if (!cimesDone || !fauxDone) return;
-      if (layersControl) return;
-
-      const overlays = {};
-      if (cimesLayer) overlays["Cimes-contours"] = cimesLayer;
-      if (fauxPosLayer) overlays["Faux-positifs (rouge)"] = fauxPosLayer;
-
-      if (Object.keys(overlays).length) {
-        layersControl = L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+    // -- Couche Faux-positifs --
+    fauxPosLayer = L.geoJSON(fauxGeoJSON, {
+      style: {
+        color: '#a50026',
+        fillColor: '#d73027',
+        weight: 1.5,
+        fillOpacity: 0.5
+      },
+      onEachFeature: (feature, layer) => {
+        layer.bindPopup(makeFauxPosPopup(feature.properties), { maxWidth: 200 });
+        layer.on('mouseover', function () { this.setStyle({ weight: 3, fillOpacity: 0.8 }); });
+        layer.on('mouseout',  function () { fauxPosLayer.resetStyle(this); });
       }
-    }
-    // === FIN AJOUT MINIMAL ===
+    }).addTo(map);
 
-    fetch(cimesUrl.toString(), { cache: 'no-store' })
-      .then(async r => {
-        if (!r.ok) throw new Error(`Cimes-contours: HTTP ${r.status} sur ${r.url}`);
-        return r.json();
-      })
-      .then(geojson => {
-        cimesLayer = L.geoJSON(geojson, {
-          style: {
-            color: '#2c7fb8',
-            weight: 2,
-            fillOpacity: 0.35
-          },
-          onEachFeature: bindAllPropsPopup
-        }).addTo(map);
+    // -- Graphique : distribution des hauteurs --
+    const BUCKETS = [0,2,4,6,8,10,12,14,16,18,20];
+    const hLabels = BUCKETS.slice(0,-1).map((b,i) => `${b}–${BUCKETS[i+1]}m`);
+    const hCounts = new Array(hLabels.length).fill(0);
+    hauteurs.forEach(h => {
+      const idx = Math.min(Math.floor(h / 2), hCounts.length - 1);
+      hCounts[idx]++;
+    });
+    const hColors = BUCKETS.slice(0,-1).map(b => heightColor(b + 1));
 
-        if (cimesLayer.getLayers().length) {
-          map.fitBounds(cimesLayer.getBounds());
+    new Chart(document.getElementById('chartHauteurs'), {
+      type: 'bar',
+      data: {
+        labels: hLabels,
+        datasets: [{ label: 'Nb cimes', data: hCounts, backgroundColor: hColors, borderWidth: 0, borderRadius: 3 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { font: { size: 9 }, color: '#888' }, grid: { display: false } },
+          y: { ticks: { font: { size: 9 }, color: '#888' } }
         }
-      })
-      .catch(err => {
-        console.error(err);
-        alert('Impossible de charger Cimes-contours.geojson : ' + err.message);
-      })
-      .finally(() => { // === AJOUT MINIMAL ===
-        cimesDone = true;
-        maybeCreateLayersControl();
-      });
+      }
+    });
 
-    fetch(fauxPosUrl.toString(), { cache: 'no-store' })
-      .then(async r => {
-        if (!r.ok) throw new Error(`Faux-positifs: HTTP ${r.status} sur ${r.url}`);
-        return r.json();
-      })
-      .then(geojson => {
-        fauxPosLayer = L.geoJSON(geojson, {
-          style: {
-            color: '#d73027',
-            weight: 2,
-            fillOpacity: 0.35
-          },
-          onEachFeature: bindAllPropsPopup
-        }).addTo(map);
+    // -- Graphique : faux positifs par catégorie --
+    const catCount = {};
+    fauxGeoJSON.features.forEach(f => {
+      const cat = f.properties['Faux posit'] || 'Inconnu';
+      catCount[cat] = (catCount[cat] || 0) + 1;
+    });
+    const palette = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#a65628','#f781bf','#999999'];
 
-        // (Suppression nécessaire) le contrôle de couches ne doit plus être créé ici,
-        // sinon cimesLayer peut encore être null.
-      })
-      .catch(err => {
-        console.error(err);
-        alert('Impossible de charger Faux-positifs.geojson : ' + err.message);
-      })
-      .finally(() => { // === AJOUT MINIMAL ===
-        fauxDone = true;
-        maybeCreateLayersControl();
-      });
-  </script>
+    new Chart(document.getElementById('chartFauxPos'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(catCount),
+        datasets: [{
+          data: Object.values(catCount),
+          backgroundColor: palette.slice(0, Object.keys(catCount).length),
+          borderWidth: 1,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { font: { size: 10 }, padding: 5, boxWidth: 11, color: '#444' }
+          }
+        }
+      }
+    });
+
+  }).catch(err => {
+    console.error(err);
+    alert('Erreur de chargement des données : ' + err.message);
+  });
+
+  // ===== EVENTS : FILTRES =====
+  document.getElementById('filterMin').addEventListener('input', e => {
+    heightMin = parseFloat(e.target.value);
+    if (heightMin > heightMax) {
+      heightMax = heightMin;
+      document.getElementById('filterMax').value = heightMax;
+      document.getElementById('filterMaxVal').textContent = fmt(heightMax, 1) + ' m';
+    }
+    document.getElementById('filterMinVal').textContent = fmt(heightMin, 1) + ' m';
+    applyFilter();
+  });
+
+  document.getElementById('filterMax').addEventListener('input', e => {
+    heightMax = parseFloat(e.target.value);
+    if (heightMax < heightMin) {
+      heightMin = heightMax;
+      document.getElementById('filterMin').value = heightMin;
+      document.getElementById('filterMinVal').textContent = fmt(heightMin, 1) + ' m';
+    }
+    document.getElementById('filterMaxVal').textContent = fmt(heightMax, 1) + ' m';
+    applyFilter();
+  });
+
+  // ===== EVENTS : COUCHES =====
+  document.getElementById('toggleCimes').addEventListener('change', e => {
+    if (!cimesLayer) return;
+    e.target.checked ? cimesLayer.addTo(map) : map.removeLayer(cimesLayer);
+  });
+
+  document.getElementById('toggleFauxPos').addEventListener('change', e => {
+    if (!fauxPosLayer) return;
+    e.target.checked ? fauxPosLayer.addTo(map) : map.removeLayer(fauxPosLayer);
+  });
+</script>
+
 </body>
 </html>
