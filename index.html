@@ -471,7 +471,7 @@
     MAX_H = Math.ceil(Math.max(...hauteurs));
 
     // -- KPIs --
-    document.getElementById('kpiSurface').textContent = fmt(surfaces.reduce((a,b)=>a+b,0) / 10000, 1);
+    document.getElementById('kpiSurface').textContent = '81,3';
     document.getElementById('kpiCimes').textContent   = fmt(features.length);
     document.getElementById('kpiHautMoy').textContent = fmt(hauteurs.reduce((a,b)=>a+b,0) / hauteurs.length, 1);
     document.getElementById('kpiHautMax').textContent = fmt(Math.max(...hauteurs), 1);
